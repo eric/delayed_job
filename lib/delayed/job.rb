@@ -71,7 +71,7 @@ module Delayed
 
         self.attempts    += 1
         self.run_at       = time
-        self.last_error   = message + "\n" + backtrace.join("\n")
+        self.last_error   = message.to_s + "\n" + backtrace.join("\n")
         self.unlock
         save!
       else
