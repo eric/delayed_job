@@ -31,6 +31,9 @@ module Delayed
     self.min_priority = nil
     self.max_priority = nil
 
+    cattr_accessor :extra_next_task_conditions
+    self.extra_next_task_conditions = nil
+
     # When a worker is exiting, make sure we don't have any locked jobs.
     def self.clear_locks!
       update_all("locked_by = null, locked_at = null", ["locked_by = ?", worker_name])
@@ -106,6 +109,9 @@ module Delayed
     def self.enqueue(*args, &block)
       object = block_given? ? EvaledJob.new(&block) : args.shift
 
+      # Allow job options to be overridden
+      options = args.extract_options!
+
       unless object.respond_to?(:perform) || block_given?
         raise ArgumentError, 'Cannot enqueue items which do not respond to perform'
       end
@@ -113,7 +119,7 @@ module Delayed
       priority = args.first || 0
       run_at   = args[1]
 
-      Job.create(:payload_object => object, :priority => priority.to_i, :run_at => run_at)
+      Job.create({ :payload_object => object, :priority => priority.to_i, :run_at => run_at }.merge(options))
     end
 
     # Find a few candidate jobs to run (in case some immediately get locked by others).
@@ -134,6 +140,10 @@ module Delayed
       if self.max_priority
         sql << ' AND (priority <= ?)'
         conditions << max_priority
+      end
+
+      if self.extra_next_task_conditions
+        sql << " AND (#{extra_next_task_conditions})"
       end
 
       conditions.unshift(sql)

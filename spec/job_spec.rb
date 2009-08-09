@@ -22,6 +22,7 @@ describe Delayed::Job do
   before  do               
     Delayed::Job.max_priority = nil
     Delayed::Job.min_priority = nil      
+    Delayed::Job.extra_next_task_conditions = nil
     
     Delayed::Job.delete_all
   end
@@ -272,7 +273,27 @@ describe Delayed::Job do
     end                         
    
   end
-  
+
+  context "worker conditions" do
+    before(:each) do
+      Delayed::Job.extra_next_task_conditions = nil
+    end
+
+    it "should only work_off jobs that are specified in the conditions" do
+      Delayed::Job.extra_next_task_conditions = "server_id IS NULL OR server_id = 7"
+
+      SimpleJob.runs.should == 0
+
+      Delayed::Job.enqueue SimpleJob.new
+      Delayed::Job.enqueue SimpleJob.new, :server_id => 7
+      Delayed::Job.enqueue SimpleJob.new, :server_id => 9
+
+      Delayed::Job.work_off
+
+      SimpleJob.runs.should == 2
+    end
+  end
+
   context "when pulling jobs off the queue for processing, it" do
     before(:each) do
       @job = Delayed::Job.create(

@@ -50,6 +50,22 @@ Here is an example of changing job parameters in Rails:
 
 Note: If your error messages are long, consider changing last_error field to a :text instead of a :string (255 character limit).
 
+To add your own limitations for jobs (to specify what job should run where), 
+you can set the Delayed::Job.extra_next_task_conditions option.
+
+If you were limiting certain jobs to only run on certain servers, you could
+add a server_id column to the delayed_jobs table:
+
+    table.integer  :server_id                    # What server should be working on this job
+
+And then before invoking Delayed::Worker.new.start:
+
+  Delayed::Job.extra_next_task_conditions = "server_id IS NULL OR server_id = #{ENV['SERVER_ID']}"
+
+When enqueueing new jobs, just include the :server_id option:
+
+  Delayed::Job.enqueue CleanupJob.new, :server_id => 7
+
 
 h2. Usage
 
@@ -98,6 +114,8 @@ h3. Cleaning up
 You can invoke @rake jobs:clear@ to delete all jobs in the queue.
 
 h3. Changes
+
+* 1.x.x: Added extra_next_task_conditions method to Delayed::Job class and added options hash to Delayed::Job.enqueue to allow for passing other columns to Delayed::Job.create
 
 * 1.7.0: Added failed_at column which can optionally be set after a certain amount of failed job attempts. By default failed job attempts are destroyed after about a month.
 
